@@ -1,0 +1,110 @@
+version: '3.8'
+services:
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:latest
+    container_name: redpanda-broker
+    command:
+      - redpanda
+      - start
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
+      - --pandaproxy-addr internal://0.0.0.0:8082,external://0.0.0.0:18082
+      - --advertise-pandaproxy-addr internal://redpanda:8082,external://localhost:18082
+      - --schema-registry-addr internal://0.0.0.0:8081,external://0.0.0.0:18081
+      - --rpc-addr redpanda:33145
+      - --advertise-rpc-addr redpanda:33145
+      - --mode dev-container
+      - --smp 1
+      - --default-log-level=info
+    ports:
+      - 18081:18081
+      - 18082:18082
+      - 19092:19092
+      - 19644:9644
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: fleet-redis
+    command: redis-server --client-output-buffer-limit pubsub 0 0 0
+    ports:
+      - "6379:6379"
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    container_name: fleet-timescaledb
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  ingestion-api:
+    build:
+      context: .
+      dockerfile: ./cmd/ingestion-api/Dockerfile
+    environment:
+      - KAFKA_BROKERS=redpanda:9092
+      - KAFKA_TOPIC=telemetry
+      - PORT=8080
+    deploy:
+      replicas: 1
+    depends_on:
+      redpanda:
+        condition: service_healthy
+
+  stream-processor:
+    build:
+      context: .
+      dockerfile: ./cmd/stream-processor/Dockerfile
+    container_name: stream-processor
+    environment:
+      - KAFKA_BROKERS=redpanda:9092
+      - KAFKA_TOPIC=telemetry
+      - KAFKA_GROUP=stream-processor-group
+      - REDIS_ADDR=redis:6379
+      - DB_CONN=${DB_CONN}
+    depends_on:
+      redpanda:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      timescaledb:
+        condition: service_started
+
+  query-api:
+    build:
+      context: .
+      dockerfile: ./cmd/query-api/Dockerfile
+    container_name: query-api
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_ADDR=redis:6379
+      - DB_CONN=${DB_CONN}
+      - PORT=8081
+    depends_on:
+      redis:
+        condition: service_started
+      timescaledb:
+        condition: service_started
+
+
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "80:80"
+    depends_on:
+      - ingestion-api
+      - query-api
