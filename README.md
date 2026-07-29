@@ -55,6 +55,15 @@ graph TD
     QueryAPI -- "Fetch Historical Data" --> TimescaleDB
 ```
 
+## 🗄️ Database Schema & TimescaleDB Optimization
+Instead of a traditional relational table, this system leverages **TimescaleDB Hypertables** to manage massive volumes of time-series telemetry data efficiently.
+
+* **Hypertables & Automatic Partitioning:** The `location_history` table is not a standard Postgres table; it is a hypertable automatically partitioned into 1-hour chunks based on the timestamp.
+* **Columnar Compression:** Older chunks are automatically compressed and grouped by `asset_id`. This drastically reduces storage costs and massively speeds up historical route queries (`/api/v1/assets/:id/route`).
+* **Schema:**
+  * `assets` table: Stores static metadata (`id`, `driver_name`).
+  * `location_history` table: Stores billions of compressed data points (`time`, `asset_id`, `latitude`, `longitude`).
+
 ## 🛠️ Technology Stack
 * **Language:** Go (Golang)
 * **API Gateway / Load Balancer:** Nginx
