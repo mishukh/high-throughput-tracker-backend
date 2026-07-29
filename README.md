@@ -29,14 +29,14 @@ graph TD
 
     NGINX[🔀 Nginx Layer 7 Load Balancer]:::gateway
 
-    IngestAPI[⚡ Ingestion API (Go)]:::api
-    QueryAPI[🔍 Query API (Go)]:::api
+    IngestAPI[⚡ Ingestion API - Go]:::api
+    QueryAPI[🔍 Query API - Go]:::api
 
     Kafka[(📨 Redpanda / Kafka)]:::queue
     Redis[(⚡ Redis In-Memory Cache)]:::cache
     TimescaleDB[(🗄️ TimescaleDB Columnar DB)]:::db
 
-    Worker[⚙️ Stream Processor (Go)]:::worker
+    Worker[⚙️ Stream Processor - Go]:::worker
 
     %% Command Path (Writes)
     IoT -- "POST /api/v1/telemetry" --> NGINX
@@ -87,13 +87,13 @@ DB_CONN=postgres://postgres:your_secure_password@timescaledb:5432/fleet?sslmode=
 docker compose up -d --build
 ```
 
-2. **Run the High-Concurrency Load Tester:**
+3. **Run the High-Concurrency Load Tester:**
 Stress test the architecture with 200 concurrent background workers firing payloads for 10 seconds.
 ```powershell
 .\run-loadtest.ps1
 ```
 
-3. **View the Observability Dashboard:**
+4. **View the Observability Dashboard:**
 The load tester automatically scrapes the `Query API` at the end of the run to generate a massive, structured JSON report detailing the health, queue offsets, memory usage, and throughput of all system components. Open `loadtest_results.log` to see the performance metrics!
 
 ## 💡 System Design Highlights
