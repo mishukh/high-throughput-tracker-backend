@@ -46,6 +46,14 @@ services:
     volumes:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
 
+  init-kafka:
+    image: docker.redpanda.com/redpandadata/redpanda:latest
+    container_name: init-kafka
+    entrypoint: [ "bash", "-c", "rpk topic create telemetry -p 10 --brokers redpanda:9092 || true" ]
+    depends_on:
+      redpanda:
+        condition: service_healthy
+
   ingestion-api:
     build:
       context: .
@@ -55,25 +63,26 @@ services:
       - KAFKA_TOPIC=telemetry
       - PORT=8080
     deploy:
-      replicas: 1
+      replicas: 3
     depends_on:
-      redpanda:
-        condition: service_healthy
+      init-kafka:
+        condition: service_completed_successfully
 
   stream-processor:
     build:
       context: .
       dockerfile: ./cmd/stream-processor/Dockerfile
-    container_name: stream-processor
     environment:
       - KAFKA_BROKERS=redpanda:9092
       - KAFKA_TOPIC=telemetry
       - KAFKA_GROUP=stream-processor-group
       - REDIS_ADDR=redis:6379
       - DB_CONN=${DB_CONN}
+    deploy:
+      replicas: 3
     depends_on:
-      redpanda:
-        condition: service_healthy
+      init-kafka:
+        condition: service_completed_successfully
       redis:
         condition: service_started
       timescaledb:

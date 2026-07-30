@@ -4,8 +4,8 @@ A highly scalable, distributed backend system designed to ingest, process, and q
 
 ## 🚀 Performance Metrics (Load Tested)
 Running locally on a single machine via Docker Desktop, this architecture effortlessly handles:
-* **Throughput:** `2,500+ Requests / Second`
-* **Latency:** `~60 ms` average response time
+* **Throughput:** ~300 Requests / Second (Sustained over 60s under heavy local CPU contention)
+* **Latency:** ~700 ms average response time (Local Docker limits)
 * **Zero Data Loss:** Kafka buffering completely shields the persistent database from heavy traffic spikes.
 
 ## 🏗️ System Architecture
@@ -29,14 +29,14 @@ graph TD
 
     NGINX[🔀 Nginx Layer 7 Load Balancer]:::gateway
 
-    IngestAPI[⚡ Ingestion API - Go]:::api
-    QueryAPI[🔍 Query API - Go]:::api
+    IngestAPI[⚡ Ingestion API (3x Replicas)]:::api
+    QueryAPI[🔍 Query API]:::api
 
-    Kafka[(📨 Redpanda / Kafka)]:::queue
+    Kafka[(📨 Redpanda / Kafka - 10 Partitions)]:::queue
     Redis[(⚡ Redis In-Memory Cache)]:::cache
     TimescaleDB[(🗄️ TimescaleDB Columnar DB)]:::db
 
-    Worker[⚙️ Stream Processor - Go]:::worker
+    Worker[⚙️ Stream Processor (3x Replicas)]:::worker
 
     %% Command Path (Writes)
     IoT -- "POST /api/v1/telemetry" --> NGINX
@@ -106,6 +106,8 @@ Stress test the architecture with 200 concurrent background workers firing paylo
 The load tester automatically scrapes the `Query API` at the end of the run to generate a massive, structured JSON report detailing the health, queue offsets, memory usage, and throughput of all system components. Open `loadtest_results.log` to see the performance metrics!
 
 ## 💡 System Design Highlights
-* **High Availability:** The API layer is stateless and easily horizontally scalable behind Nginx.
-* **Backpressure Management:** If the database experiences heavy load, Kafka acts as a shock-absorber. The ingestion API will never block or time out, and the stream processor will pull messages at a sustainable rate.
+* **Bulletproof Idempotency:** The database utilizes `UNIQUE (asset_id, time)` constraints and `ON CONFLICT DO NOTHING` statements to guarantee absolutely zero duplicate telemetry points, even if Kafka redelivers a batch.
+* **True Batching (Zero Consumer Lag):** The stream processors aggregate Kafka messages into 50ms time-windows (or up to 1,000 payloads) before issuing a single bulk SQL `INSERT`, allowing the consumers to drain the queue in real-time under heavy load with exactly 0% lag.
+* **High Availability & Horizontal Scaling:** The ingestion and stream processing layers are decoupled and horizontally scaled (3 replicas each) across 10 Kafka partitions.
+* **Backpressure Management:** If the database experiences heavy load, Kafka acts as a shock-absorber. The ingestion API will never block or time out.
 * **Storage Efficiency:** TimescaleDB utilizes chunk compression, allowing billions of GPS pings to be stored at a fraction of standard relational database sizes.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"time"
 
 	"github.com/mishukh/fleet-tracker/internal/domain"
 	"github.com/mishukh/fleet-tracker/internal/kafka"
@@ -34,21 +35,21 @@ func main() {
 
 	log.Println("Stream Processor started. Listening for telemetry...")
 
-	consumer.Consume(ctx, func(ctx context.Context, t domain.Telemetry) error {
-		log.Printf("Processing telemetry for asset: %s", t.AssetID)
+	consumer.ConsumeBatch(ctx, 1000, 1*time.Second, func(ctx context.Context, batch []domain.Telemetry) error {
+		log.Printf("Processing batch of %d telemetry records", len(batch))
 
-		if err := cache.SetLatestLocation(ctx, t); err != nil {
-			log.Printf("Error updating redis: %v", err)
-			return err
-		}
-
-		if err := storage.InsertBatch(ctx, []domain.Telemetry{t}); err != nil {
+		if err := storage.InsertBatch(ctx, batch); err != nil {
 			log.Printf("Error updating postgres: %v", err)
 			return err
 		}
 
-		if err := cache.PublishLocation(ctx, t); err != nil {
-			log.Printf("Error publishing to redis: %v", err)
+		for _, t := range batch {
+			if err := cache.SetLatestLocation(ctx, t); err != nil {
+				log.Printf("Error updating redis for asset %s: %v", t.AssetID, err)
+			}
+			if err := cache.PublishLocation(ctx, t); err != nil {
+				log.Printf("Error publishing to redis for asset %s: %v", t.AssetID, err)
+			}
 		}
 
 		return nil

@@ -19,7 +19,7 @@ import (
 const (
 	NumAssets      = 100000
 	NumWorkers     = 200
-	TestDuration   = 10 * time.Second
+	TestDuration   = 60 * time.Second
 	BatchSize      = 1000
 )
 

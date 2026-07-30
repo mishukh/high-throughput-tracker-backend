@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS location_history (
     time TIMESTAMPTZ NOT NULL,
     asset_id VARCHAR(50) REFERENCES assets(id),
     latitude DOUBLE PRECISION NOT NULL,
-    longitude DOUBLE PRECISION NOT NULL
+    longitude DOUBLE PRECISION NOT NULL,
+    UNIQUE (asset_id, time)
 );
 
 SELECT create_hypertable('location_history', by_range('time'));

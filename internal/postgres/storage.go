@@ -34,7 +34,7 @@ func (s *Storage) InsertBatch(ctx context.Context, telemetries []domain.Telemetr
 
 	for _, t := range telemetries {
 		_, err := tx.Exec(ctx,
-			"INSERT INTO location_history (time, asset_id, latitude, longitude) VALUES ($1, $2, $3, $4)",
+			"INSERT INTO location_history (time, asset_id, latitude, longitude) VALUES ($1, $2, $3, $4) ON CONFLICT (asset_id, time) DO NOTHING",
 			t.Timestamp, t.AssetID, t.Latitude, t.Longitude)
 		if err != nil {
 			return err
