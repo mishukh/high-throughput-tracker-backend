@@ -3,10 +3,11 @@
 A highly scalable, distributed backend system designed to ingest, process, and query real-time IoT telemetry data (GPS coordinates) from tens of thousands of active vehicles. Built entirely in Go, this project implements the **CQRS (Command Query Responsibility Segregation)** pattern to achieve massive throughput with zero data loss.
 
 ## 🚀 Performance Metrics (Load Tested)
-Running locally on a single machine via Docker Desktop, this architecture effortlessly handles:
-* **Throughput:** ~300 Requests / Second (Sustained over 60s under heavy local CPU contention)
-* **Latency:** ~700 ms average response time (Local Docker limits)
-* **Zero Data Loss:** Kafka buffering completely shields the persistent database from heavy traffic spikes.
+Running locally on a single machine via Docker Desktop:
+* **Single-Replica Peak Throughput:** `~2,243 Requests / Second` (10s test, consumer bottlenecked)
+* **Distributed Scalability:** `~300 Requests / Second` (60s test, 3x replicas, CPU bottlenecked locally)
+* **Latency:** `60ms - 700ms` average response time (depending on local CPU contention)
+* **Data Durability:** Kafka buffers the persistent database from traffic spikes.
 
 ## 🏗️ System Architecture
 
@@ -106,8 +107,8 @@ Stress test the architecture with 200 concurrent background workers firing paylo
 The load tester automatically scrapes the `Query API` at the end of the run to generate a massive, structured JSON report detailing the health, queue offsets, memory usage, and throughput of all system components. Open `loadtest_results.log` to see the performance metrics!
 
 ## 💡 System Design Highlights
-* **Bulletproof Idempotency:** The database utilizes `UNIQUE (asset_id, time)` constraints and `ON CONFLICT DO NOTHING` statements to guarantee absolutely zero duplicate telemetry points, even if Kafka redelivers a batch.
-* **True Batching (Zero Consumer Lag):** The stream processors aggregate Kafka messages into 50ms time-windows (or up to 1,000 payloads) before issuing a single bulk SQL `INSERT`, allowing the consumers to drain the queue in real-time under heavy load with exactly 0% lag.
+* **Idempotency:** The database utilizes `UNIQUE (asset_id, time)` constraints and `ON CONFLICT DO NOTHING` statements to prevent duplicate telemetry points during Kafka batch redeliveries.
+* **Batch Processing:** The stream processors aggregate Kafka messages into 50ms time-windows (or up to 1,000 payloads) before issuing a single bulk SQL `INSERT`, allowing the consumers to process the queue synchronously under load.
 * **High Availability & Horizontal Scaling:** The ingestion and stream processing layers are decoupled and horizontally scaled (3 replicas each) across 10 Kafka partitions.
-* **Backpressure Management:** If the database experiences heavy load, Kafka acts as a shock-absorber. The ingestion API will never block or time out.
-* **Storage Efficiency:** TimescaleDB utilizes chunk compression, allowing billions of GPS pings to be stored at a fraction of standard relational database sizes.
+* **Backpressure Management:** Kafka acts as a buffer. The ingestion API does not block or time out under database load.
+* **Storage Efficiency:** TimescaleDB utilizes chunk compression to reduce the storage footprint of time-series data.
