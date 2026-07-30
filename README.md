@@ -98,9 +98,9 @@ docker compose up -d --build
 ```
 
 3. **Run the High-Concurrency Load Tester:**
-Stress test the architecture with 200 concurrent background workers firing payloads for 10 seconds.
-```powershell
-.\run-loadtest.ps1
+Stress test the architecture with 200 concurrent background workers firing payloads for 60 seconds.
+```bash
+docker compose --profile loadtest run --rm loadtest
 ```
 
 4. **View the Observability Dashboard:**
