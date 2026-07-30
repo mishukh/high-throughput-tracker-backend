@@ -68,8 +68,11 @@ func main() {
 	var failCount int64
 	var totalLatency int64 // in microseconds
 
+	var errMu sync.Mutex
+	errStats := make(map[string]int)
+
 	client := &http.Client{
-		Timeout: 2 * time.Second,
+		Timeout: 10 * time.Second,
 		Transport: &http.Transport{
 			MaxIdleConns:        1000,
 			MaxIdleConnsPerHost: 1000,
@@ -109,6 +112,11 @@ func main() {
 					resp, err := client.Do(req)
 					if err != nil {
 						atomic.AddInt64(&failCount, 1)
+						errStr := err.Error()
+						if len(errStr) > 50 { errStr = errStr[:50] + "..." }
+						errMu.Lock()
+						errStats[errStr]++
+						errMu.Unlock()
 						continue
 					}
 					
@@ -117,6 +125,10 @@ func main() {
 						atomic.AddInt64(&totalLatency, time.Since(reqStart).Microseconds())
 					} else {
 						atomic.AddInt64(&failCount, 1)
+						errStr := fmt.Sprintf("HTTP %d", resp.StatusCode)
+						errMu.Lock()
+						errStats[errStr]++
+						errMu.Unlock()
 					}
 					resp.Body.Close()
 				}
@@ -135,7 +147,6 @@ func main() {
 	
 	// Retry loop for fetching metrics
 	var resp *http.Response
-	var err error
 	for retries := 0; retries < 5; retries++ {
 		resp, err = metricsClient.Get(metricsURL)
 		if err == nil && resp.StatusCode == http.StatusOK {
@@ -157,10 +168,17 @@ func main() {
 
 	totalReqs := successCount + failCount
 	rps := float64(totalReqs) / elapsed.Seconds()
-	
-	var avgLatency float64
+	avgLatency := 0.0
 	if successCount > 0 {
 		avgLatency = float64(totalLatency) / float64(successCount) / 1000.0 // ms
+	}
+
+	errBreakdown := ""
+	for k, v := range errStats {
+		errBreakdown += fmt.Sprintf("  - %d x %s\n", v, k)
+	}
+	if errBreakdown == "" {
+		errBreakdown = "  (None)\n"
 	}
 
 	report := fmt.Sprintf(`
@@ -171,7 +189,8 @@ Total Time:          %.2f seconds
 Total Requests:      %d
 Successful Requests: %d
 Failed Requests:     %d
---------------------------------------------------
+Error Breakdown:
+%s--------------------------------------------------
 🚀 THROUGHPUT:       %.2f Requests / Second
 ⚡ AVG LATENCY:      %.2f ms
 ==================================================
@@ -179,7 +198,7 @@ Failed Requests:     %d
 ==================================================
 %s
 ==================================================
-`, elapsed.Seconds(), totalReqs, successCount, failCount, rps, avgLatency, sysMetrics)
+`, elapsed.Seconds(), totalReqs, successCount, failCount, errBreakdown, rps, avgLatency, sysMetrics)
 
 	fmt.Println(report)
 
