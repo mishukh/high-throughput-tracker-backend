@@ -25,19 +25,19 @@ graph TD
     classDef worker fill:#805AD5,stroke:#6B46C1,stroke-width:2px,color:#fff,rx:5px,ry:5px;
 
     %% Nodes
-    IoT[🚗 IoT Devices / Load Tester]:::client
-    Client[💻 Web/Mobile Clients]:::client
+    IoT["🚗 IoT Devices / Load Tester"]:::client
+    Client["💻 Web/Mobile Clients"]:::client
 
-    NGINX[🔀 Nginx Layer 7 Load Balancer]:::gateway
+    NGINX["🔀 Nginx Layer 7 Load Balancer"]:::gateway
 
-    IngestAPI[⚡ Ingestion API (3x Replicas)]:::api
-    QueryAPI[🔍 Query API]:::api
+    IngestAPI["⚡ Ingestion API (3x Replicas)"]:::api
+    QueryAPI["🔍 Query API"]:::api
 
-    Kafka[(📨 Redpanda / Kafka - 10 Partitions)]:::queue
-    Redis[(⚡ Redis In-Memory Cache)]:::cache
-    TimescaleDB[(🗄️ TimescaleDB Columnar DB)]:::db
+    Kafka[("📨 Redpanda / Kafka - 10 Partitions")]:::queue
+    Redis[("⚡ Redis In-Memory Cache")]:::cache
+    TimescaleDB[("🗄️ TimescaleDB Columnar DB")]:::db
 
-    Worker[⚙️ Stream Processor (3x Replicas)]:::worker
+    Worker["⚙️ Stream Processor (3x Replicas)"]:::worker
 
     %% Command Path (Writes)
     IoT -- "POST /api/v1/telemetry" --> NGINX
