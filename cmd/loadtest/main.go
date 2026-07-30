@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"math/rand"
 	"net/http"
@@ -130,6 +131,7 @@ func main() {
 						errStats[errStr]++
 						errMu.Unlock()
 					}
+					io.Copy(io.Discard, resp.Body)
 					resp.Body.Close()
 				}
 			}
