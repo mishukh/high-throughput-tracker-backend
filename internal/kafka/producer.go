@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/segmentio/kafka-go"
 	"github.com/mishukh/fleet-tracker/internal/domain"
@@ -16,9 +17,12 @@ type Producer struct {
 
 func NewProducer(brokers []string, topic string) *Producer {
 	w := &kafka.Writer{
-		Addr:     kafka.TCP(brokers...),
-		Topic:    topic,
-		Balancer: &kafka.LeastBytes{},
+		Addr:         kafka.TCP(brokers...),
+		Topic:        topic,
+		Balancer:     &kafka.LeastBytes{},
+		RequiredAcks: kafka.RequireOne,
+		BatchTimeout: 10 * time.Millisecond,
+		BatchSize:    100,
 	}
 	return &Producer{writer: w}
 }

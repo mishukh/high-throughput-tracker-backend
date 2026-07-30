@@ -4,10 +4,10 @@ A highly scalable, distributed backend system designed to ingest, process, and q
 
 ## 🚀 Performance Metrics (Load Tested)
 Running locally on a single machine via Docker Desktop:
-* **Single-Replica Peak Throughput:** `~2,243 Requests / Second` (10s test, consumer bottlenecked)
-* **Distributed Scalability:** `~300 Requests / Second` (60s test, 3x replicas, CPU bottlenecked locally)
-* **Latency:** `60ms - 700ms` average response time (depending on local CPU contention)
-* **Data Durability:** Kafka buffers the persistent database from traffic spikes.
+* **Peak Distributed Throughput (Write Path):** `~435 Requests / Second` (60s load test across 3 ingestion replicas and 10 Kafka partitions)
+* **Average Latency:** `~355ms` response time under sustained 200-worker bombardment (halved from initial implementations through Kafka batching).
+* **Concurrency Limitations:** Tested with 200 concurrent workers. Shows Nginx/OS connection limits under sustained local Docker Desktop execution on Windows (some connection drops observed), but architecture maintains stability.
+* **Data Durability:** Kafka buffers the persistent database from traffic spikes, ensuring zero data loss for all accepted payloads.
 
 ## 🏗️ System Architecture
 

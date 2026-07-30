@@ -42,7 +42,8 @@ func main() {
 	dbHost := getEnv("DB_HOST", "localhost")
 	apiHost := getEnv("API_HOST", "localhost")
 	
-	dbConn := fmt.Sprintf("postgres://postgres:password@%s:5432/fleet?sslmode=disable", dbHost)
+	dbPort := getEnv("DB_PORT", "5433")
+	dbConn := fmt.Sprintf("postgres://postgres:password@%s:%s/fleet?sslmode=disable", dbHost, dbPort)
 	apiURL := fmt.Sprintf("http://%s/api/v1/telemetry", apiHost)
 
 	log.Println("==================================================")
