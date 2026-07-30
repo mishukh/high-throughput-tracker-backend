@@ -127,12 +127,24 @@ func main() {
 	wg.Wait()
 	elapsed := time.Since(start)
 
-	time.Sleep(2 * time.Second)
+	// Allow some time for TCP sockets to recover from ephemeral port exhaustion
+	time.Sleep(3 * time.Second)
 	metricsClient := &http.Client{Timeout: 10 * time.Second}
 	metricsURL := fmt.Sprintf("http://%s/api/v1/system/metrics", apiHost)
 	var sysMetrics string
-	resp, err := metricsClient.Get(metricsURL)
-	if err == nil && resp.StatusCode == http.StatusOK {
+	
+	// Retry loop for fetching metrics
+	var resp *http.Response
+	var err error
+	for retries := 0; retries < 5; retries++ {
+		resp, err = metricsClient.Get(metricsURL)
+		if err == nil && resp.StatusCode == http.StatusOK {
+			break
+		}
+		time.Sleep(2 * time.Second)
+	}
+
+	if err == nil && resp != nil && resp.StatusCode == http.StatusOK {
 		var result map[string]interface{}
 		if err := json.NewDecoder(resp.Body).Decode(&result); err == nil {
 			pretty, _ := json.MarshalIndent(result, "", "  ")
@@ -140,7 +152,7 @@ func main() {
 		}
 		resp.Body.Close()
 	} else {
-		sysMetrics = fmt.Sprintf("Failed to fetch system metrics from %s", metricsURL)
+		sysMetrics = fmt.Sprintf("Failed to fetch system metrics from %s after retries", metricsURL)
 	}
 
 	totalReqs := successCount + failCount
