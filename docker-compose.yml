@@ -175,3 +175,19 @@ services:
       - ingestion-api-2
       - ingestion-api-3
       - query-api
+
+  loadtest:
+    build:
+      context: .
+      dockerfile: ./cmd/loadtest/Dockerfile
+    container_name: fleet-loadtest
+    profiles: ["loadtest"]
+    environment:
+      - API_HOST=api-gateway
+      - DB_HOST=timescaledb
+      - DB_PORT=5432
+    depends_on:
+      api-gateway:
+        condition: service_started
+      timescaledb:
+        condition: service_started
